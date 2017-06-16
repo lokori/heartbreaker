@@ -18,19 +18,15 @@ We recommend installing this as a virtual machine. This repository contains setu
 
 1. cd vagrant
 2. vagrant up hbreaker
-3. log in, open terminal
-4. sudo su -
-5. cd /fuzz
-6. ./setup-heartbreaker.sh
 
 Now you should have everything inside the virtual machine good to go.
 
 ## Testing the installation
 
-Use vagrant user. Running as root is not necessary or recommended.
+Use vagrant user. Running as root is not necessary or recommended. Log in and open terminal.
 
 1. python -m SimpleHTTPServer & (starts a HTTP server in port 8000 at background)
-2. cd gui
+2. cd /fuzz/gui
 3. python heartbreaker.py
 4. Choose "act as client", port 8000, from the samples dir sample.txt and press play
 
