@@ -1,15 +1,17 @@
 # What is Heartbreaker ?
 
-Heartbreaker is a simple GUI for Radamsa which makes fuzz testing HTTP servers easier and more user friendly. It is a work-in-progress and 
-contributions are very welcome!
+Heartbreaker is a simple GUI for Radamsa which makes fuzz testing of any client or server protocol on TCP, SCTP or UDP easier and more user friendly. It is a work-in-progress and contributions are very welcome!
 
-Credits:
+The name and some of the visual design refers to the goal of crashing the remote application (break its heart).
+Also, as an addition, it includes is a test for infamous [Heartbleed bug](http://heartbleed.com/) found by Codenomicon (Synopsys). The  code for that test is adopted from internet, Original PoC by Jared Stafford (jspenguin@jspenguin.org).
+ 
+
+# Credits:
 
 * The Heartbreaker GUI is written in Python by Jussi Rämö. 
 * [Radamsa](https://github.com/aoh/radamsa) is a fuzzing engine written by Aki Helin.
-* [Swizzfuzz](https://github.com/ouspg/swissfuzz/) is a project of OUSPG
-* virtual machine setup scripts for the GUI by Antti Virtanen.
-* The name and some of the visual design refers to the infamous [Heartbleed bug](http://heartbleed.com/) found by Codenomicon (Synopsys).
+* [Swizzfuzz](https://github.com/ouspg/swissfuzz/) is a project of OUSPG.
+* Virtual machine setup scripts for the GUI by Antti Virtanen.
 
 
 # How to install ?
