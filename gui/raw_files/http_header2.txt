@@ -1,0 +1,8 @@
+HTTP/1.1 200 OK
+Date: Wed, 14 Mar 2012 11:35:48 GMT
+Server: Apache/2.2.15 (Red Hat)
+Vary: Cookie,User-Agent,Accept-Language
+Connection: close
+Content-Type: text/html; charset=utf-8
+
+

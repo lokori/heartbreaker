@@ -1,0 +1,30 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+Vagrant.configure("2") do |config|
+
+  # https://github.com/fgrehm/vagrant-cachier#quick-start
+  if Vagrant.has_plugin?("vagrant-cachier")
+    config.cache.scope = :box
+    config.cache.synced_folder_opts = {
+      type: :nfs,
+      mount_options: ['rw', 'vers=3', 'tcp', 'nolock']
+    }
+  end
+
+  # Heartbreaker virtual machine
+  config.vm.define "hbreaker" do |hbreaker|
+    # hbreaker.vm.box = "CentOS-6.5-x86_64-v20140311.box"
+    hbreaker.vm.box = "pbarriscale/centos7-gui"
+    # hbreaker.vm.box_url = "http://developer.nrel.gov/downloads/vagrant-boxes/CentOS-6.5-x86_64-v20140311.box"
+
+    # mount 
+    hbreaker.vm.synced_folder "../", "/fuzz"
+
+    # local port 2345 -> vm port 5432
+    hbreaker.vm.network "forwarded_port", host: 8501, guest: 8080
+    hbreaker.vm.network "private_network", ip: "192.168.50.151"
+  end
+
+
+end
