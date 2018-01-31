@@ -10,14 +10,10 @@ import socket
 import tkMessageBox
 from config import *
 import time
-#import commands
 from animatedGif import AnimatedGif
 from datetime import datetime
 from widgets import *
-
-
-
-
+from string import Template
 
 config = MITMConfig('heartbreaker.cfg')
 if os.path.isfile('.target_resp'):
@@ -156,8 +152,6 @@ class BuilderFrame(tk.Frame):
 		self.label2.config(image = self.playerTarget.currentFrame())
 		self.executed = LabeledTextFrame(self,"Executed Command: ",100,30,0)
 		self.executed.grid(columnspan=5)
-
-
 
 		self.updateDisplay()
 
@@ -303,226 +297,26 @@ class BuilderFrame(tk.Frame):
 			tkMessageBox.showwarning("Error","Invalid Target IP Address\n(%s)" % addr)
 			return False
 
-	def executeCommand(self):
-		global proc
-		global notrunc
-		if self.script.buttonfield.var.get():
-			testscript = self.script.textfield.var.get()
-		else:
-			testscript = "testscript.py"
-		resending = ""
-		# check addresses
-		cmd = ['python',testscript]
-
-		# Truncate messages in WatchLog or not
-		if notrunc.var.get():
-			trunca='False'
-		else:
-			trunca='True'
-
-
-		if self.repeat.var.get():
-			resending="resending = True"
-			cmd.append("-r")
-			if self.fromtime.buttonfield.var.get():
-				cmd.extend(["-f",self.fromtime.textfield.var.get()])
-			if self.totime.buttonfield.var.get():
-				cmd.extend(["-t",self.totime.textfield.var.get()])
-			if self.last.buttonfield.var.get():
-				cmd.extend(["--last", self.last.textfield.var.get()])
-			if self.inputfile.buttonfield.var.get():
-			#if self.inputfile.textfield.cget('state')== 'enabled':
-				input_dir_file = self.inputfile.textfield.var.get()
-				cmd.extend(["-i",input_dir_file])
-		else:
-			if not self.inputfile.buttonfield.var.get(): #self.sampledir.textfield.cget('state')== 'enabled':
-				input_dir_file = self.sampledir.textfield.var.get()
-			else:
-				input_dir_file = self.inputfile.textfield.var.get()
-			cmd.extend(["-i",input_dir_file])
-			resending="resending = False"
-
-		if self.loop.var.get():
-			cmd.append("--loop")
-
-		if self.ssl.var.get():
-			cmd.append("--ssl")
-
-		if self.count.buttonfield.var.get():
-			cmd.extend(["--count", self.count.textfield.var.get()])
-
-		#log_file = self.logdir.textfield.var.get()
-		#cmd.extend(["-L",log_file])
-
-		##
-		##  Direction: Client, Server, (MITM)
-		##
-		protocol = self.protocol.var.get()
-		direction = self.direction.var.get()
-
-		# In case of UDP, use Client even if it a server 
-		if direction == "Client" or (protocol == 'UDP'):
-			peer="server"
-			me="client"
-			Me="Client"
-			if direction == "Client":
-				wait_for_connection_or_send=\
-"watchLog(ufuzz_b+case+ufuzz_a,'a',resending,"+trunca+")\n\
-    myself."+peer+".send_data(ufuzz_b+case+ufuzz_a)\n"
-				server_send =""
-				quit_if_server=""
-			else: # UDP Server:
-				wait_for_connection_or_send=""
-				server_send="    watchLog(ufuzz_b+case+ufuzz_a,'a',resending,"+trunca+")\n\
-        myself."+peer+".send_data(ufuzz_b+case+ufuzz_a)\n"
-				quit_if_server="    quit()"
-			port = self.targetport.textfield.get()
-			addr = self.target.textfield.get()
-			if not self.checkIPaddr(addr):
-				return
-			addr = addr+":"+port
-			cmd.extend(["-c",addr])
-
-			if self.bind.textfield.get() =="":
-				pass
-			else:
-				port = self.bindport.textfield.get()
-				addr = self.bind.textfield.get()
-				if not self.checkIPaddr(addr):
-					return
-				addr = addr+":"+port
-				cmd.extend(["-b",addr])
-
-
-
-		else:
-			peer="client"
-			me="server"
-			Me="Server"
-			wait_for_connection_or_send="myself.wait_for_connection()"
-			server_send="    watchLog(ufuzz_b+case+ufuzz_a,'a',resending,"+trunca+")\n\
-        myself."+peer+".send_data(ufuzz_b+case+ufuzz_a)\n\
-    myself.client.close()\n" 
-			quit_if_server = "    quit()"
-			port = self.listenport.textfield.get()
-			addr = self.listen.textfield.get()
-			if not self.checkIPaddr(addr):
-				return
-			addr = addr+":"+port
-			cmd.extend(["-l",addr])
-
-##
-## Fixed Part
-## todo:check if file exists!!
-
-		if self.unfuzzedbefore.textfield.get() == "" or self.repeat.var.get():	
-			ufuzzb = "ufuzz_b =''\n"
-		else:
-			ufuzzb = "\n\
-ufuzz_b = str(RawFile('"+self.unfuzzedbefore.textfield.get()+"')[0])\n\
-if ufuzz_b[-1:] == '0a'.decode('hex'):\n\
-    ufuzz_b = ufuzz_b[:-1]\n\
-ufuzz_b.rstrip('0a'.decode('hex'))\n"
-
-		if self.unfuzzedafter.textfield.get() == "" or self.repeat.var.get():
-			ufuzza = "ufuzz_a =''\n"
-		else:	
-			ufuzza = "\n\
-ufuzz_a = str(RawFile('"+self.unfuzzedafter.textfield.get()+"')[0])\n\
-if ufuzz_a[-1:] == '0a'.decode('hex'):\n\
-    ufuzz_a = ufuzz_a[:-1]\n\
-ufuzz_a.rstrip('0a'.decode('hex'))\n"
-
-
-
-
-
-		timeout=self.timeout.textfield.var.get()
-		sleeptime=self.sleeptime.textfield.var.get()	
-
-##
-## 
-##
-		if self.validcase.buttonfield.var.get():
-			if_continue = "with open('.target_fail','w') as af:\n\
-            pass\n\
-        quit()\n"
-		else:
-			if_continue = "continue"
-##
-## Reconnect after each test case
-##
-		if self.reconnect.var.get():
-			if_reconnect ="\n\
-    try:\n\
-        myself="+Me+"(config)\n\
-    except:\n\
-        watchLog('Cannot make connection to target...','f')\n\
-        time.sleep("+sleeptime+")\n\
-	"+if_continue+"\n"
-			if_connect = ""
-			if_reclose = "\n\
-    myself."+peer+".close()\n"
-			if_close = ""
-		else:
-			if_reconnect = ""
-			if_connect ="# (Re)Connect to target\n\
-try:\n\
-    myself="+Me+"(config)\n\
-except:\n\
-    watchLog('Cannot make connection to target, quitting..','f')\n\
-    quit()\n" 
-			if_reclose = ""
-			if_close ="\n\
-    myself."+peer+".close()\n"
-
-##
-## Valid case instrumentation, only for clients
-##
-		if self.validcase.buttonfield.var.get() and self.direction.var.get()=="Client" and self.validcase.textfield.get():
-			valid_msg = "valid_msg = RawFile('"+self.validcase.textfield.get()+"')"
-			valid_case="\n\
-    "+if_reconnect+"\n\
-    myself."+peer+".send_data(valid_msg[0],nolog=True)\n\
-    watchLog(valid_msg[0],'v')\n\
-    response=myself."+peer+".receive("+timeout+")\n\
-    if response is Timeout:\n\
-        watchLog('No response for Valid message, Quitting..','f')\n\
-        with open('.target_fail','w') as af:\n\
-            pass\n\
-        quit()\n\
-    else:\n\
-        watchLog(response,'r',False,"+trunca+")\n\
-    "+if_reclose+"\n\
-    time.sleep("+sleeptime+")\n"
-		else:
-			valid_case=''
-			valid_msg=''
-
-
-      
-		f = open("testscript.py","w")
-		# may be needed
-		#msg = msg.encode('utf-8')
-		#data = msg + case
-
-		if direction == "MITM Server":
-			port = self.bindport.textfield.get()
-			addr = self.bind.textfield.get()
-			if not self.checkIPaddr(addr):
-				return
-			addr = addr+":"+port
-			cmd.extend(["-b",addr])
-
-			port = self.targetport.textfield.get()
-			addr = self.target.textfield.get()
-			if not self.checkIPaddr(addr):
-				return
-			addr = addr+":"+port
-			cmd.extend(["-c",addr])
-
-
-			str="\
+        def writeMITMscript(self, gen_params):
+            port = self.bindport.textfield.get()
+            addr = self.bind.textfield.get()
+            
+            if not self.checkIPaddr(addr):
+                return
+            
+            addr = addr+":"+port
+            cmd.extend(["-b",addr])
+            
+            port = self.targetport.textfield.get()
+            addr = self.target.textfield.get()
+            if not self.checkIPaddr(addr):
+                return
+                
+            addr = addr+":"+port
+            cmd.extend(["-c",addr])
+                    
+                    
+            str="\
 #!/usr/bin/python\n\
 from network import *\n\
 from config import *\n\
@@ -533,13 +327,13 @@ config = MITMConfig()\n\
 \n\
 class FuzzMitm(MITMServer):\n\
   def fuzz(self, data):\n\
-    watchLog(data,'r',False,"+trunca+")\n\
+    watchLog(data,'r',False,"+gen_params['trunca']+")\n\
     fuzzed = data\n\
     while fuzzed == data:\n\
       p = Popen('radamsa', stdout=PIPE, stdin=PIPE, stderr=STDOUT)\n\
       fuzzed=p.communicate(input=data)[0]\n\
     data = fuzzed\n\
-    watchLog(data,'a',False,"+trunca+")\n\
+    watchLog(data,'a',False,"+gen_params['trunca']+")\n\
     return data\n\
 \n\
   def handle_connection(self):\n\
@@ -547,8 +341,10 @@ class FuzzMitm(MITMServer):\n\
 \n\
 server=FuzzMitm(config)\n\
 asyncore.loop()\n"
-		else:
-			str="\
+            return str
+
+        def writeNonMITM(self, gen_params):
+            str="\
 #!/usr/bin/python\n\
 from network import *\n\
 from config import *\n\
@@ -561,25 +357,25 @@ terminate_s = False\n\
 def receive_signal(signum, stack):\n\
     global terminate_s\n\
     terminate_s=True\n\
-"+quit_if_server+"\n\
+"+gen_params['quit_if_server']+"\n\
 signal.signal(signal.SIGTERM, receive_signal)\n\
 \n\
-config ="+Me+"Config()\n\
+config ="+gen_params['Me']+"Config()\n\
 \n\
 f = open_input(config.input, config)\n\
 if config.fuzz:\n\
     f=Fuzzer(f, config.out_dir)\n\
 \n\
-"+ufuzzb+"\n\
-"+ufuzza+"\n\
-"+valid_msg+"\n\
-"+resending+"\n\
-"+if_connect+"\n\
+"+gen_params['ufuzzb']+"\n\
+"+gen_params['ufuzza']+"\n\
+"+gen_params['valid_msg']+"\n\
+"+gen_params['resending']+"\n\
+"+gen_params['if_connect']+"\n\
 while True:\n\
     if terminate_s:\n\
         quit()\n\
-    "+valid_case+"\n\
-    "+if_reconnect+"\n\
+    "+gen_params['valid_case']+"\n\
+    "+gen_params['if_reconnect']+"\n\
     # Get a new test case or resending case\n\
     case=f.next()\n\
     # Remove the last newline from the end, if any\n\
@@ -587,38 +383,257 @@ while True:\n\
         if case[-1:] == '0a'.decode('hex'):\n\
             case = case[:-1]\n\
         case.rstrip('0a'.decode('hex'))\n\
-    "+wait_for_connection_or_send+"\n\
-    reply=myself."+peer+".receive("+timeout+")\n\
+    "+gen_params['wait_for_connection_or_send']+"\n\
+    reply=myself."+gen_params['peer']+".receive("+gen_params['timeout']+")\n\
     if reply is Timeout:\n\
         watchLog('No response for fuzzed message','w')\n\
         if os.path.isfile('.target_resp'):\n\
             os.remove('.target_resp')\n\
     else:\n\
-        watchLog(reply,'r',False,"+trunca+")\n\
+        watchLog(reply,'r',False,"+gen_params['trunca']+")\n\
         with open('.target_resp','w') as af:\n\
             pass\n\
-    "+server_send+"\n\
-    "+if_reclose+"\n\
-    time.sleep("+sleeptime+")\n\
-"
-		f.write(str)
-		f.close()
+    "+gen_params['server_send']+"\n\
+    "+gen_params['if_reclose']+"\n\
+    time.sleep("+gen_params['sleeptime']+")\n\
+    "
+                    
+            return str
+        
+        # non mitm attack
+        # dict keys: server_send, if_reclose, wait_for_connection_or_send, peer, timeout, trunca
+        #            quit_if_server, Me, ufuzza, ufuzzb, valid_smg, resending, if_connect, valid_case, sleeptime
+        def writeTestscript(self, outputfile):
+            fname = 'template_script.pytempl'
+            with open(fname, 'r') as myfile:
+                template=myfile.read()
+            str = template.substitute(d)
+            f.write(str)
+            f.close()
+
+        def executeCommand(self):
+            global proc
+            global notrunc
+            if self.script.buttonfield.var.get():
+                testscript = self.script.textfield.var.get()
+            else:
+                testscript = "testscript.py"
+		
+            gen_params = dict()
+            gen_params['resending'] = ""
+            # check addresses
+            cmd = ['python',testscript]
+            
+            # Truncate messages in WatchLog or not
+            if notrunc.var.get():
+                gen_params['trunca'] = 'False'
+            else:
+                gen_params['trunca'] = 'True'
+
+            if self.repeat.var.get():
+                gen_params['resending']="resending = True"
+                cmd.append("-r")
+                if self.fromtime.buttonfield.var.get():
+                    cmd.extend(["-f",self.fromtime.textfield.var.get()])
+                    if self.totime.buttonfield.var.get():
+                        cmd.extend(["-t",self.totime.textfield.var.get()])
+			if self.last.buttonfield.var.get():
+                            cmd.extend(["--last", self.last.textfield.var.get()])
+			if self.inputfile.buttonfield.var.get():
+			#if self.inputfile.textfield.cget('state')== 'enabled':
+                            input_dir_file = self.inputfile.textfield.var.get()
+                            cmd.extend(["-i",input_dir_file])
+            else:
+                if not self.inputfile.buttonfield.var.get(): #self.sampledir.textfield.cget('state')== 'enabled':
+                    input_dir_file = self.sampledir.textfield.var.get()
+                else:
+                    input_dir_file = self.inputfile.textfield.var.get()
+                    cmd.extend(["-i",input_dir_file])
+                    gen_params['resending']="resending = False"
+
+            if self.loop.var.get():
+                cmd.append("--loop")
+
+            if self.ssl.var.get():
+                cmd.append("--ssl")
+
+            if self.count.buttonfield.var.get():
+                cmd.extend(["--count", self.count.textfield.var.get()])
+
+		#log_file = self.logdir.textfield.var.get()
+		#cmd.extend(["-L",log_file])
+
+		##
+		##  Direction: Client, Server, (MITM)
+		##
+            protocol = self.protocol.var.get()
+            direction = self.direction.var.get()
+
+            # In case of UDP, use Client even if it a server 
+            if direction == "Client" or (protocol == 'UDP'):
+                gen_params['peer']="server"
+                me="client"
+                gen_params['Me']="Client"
+                if direction == "Client":
+                    gen_params['wait_for_connection_or_send']=\
+"watchLog(ufuzz_b+case+ufuzz_a,'a',resending,"+gen_params['trunca']+")\n\
+    myself."+gen_params['peer']+".send_data(ufuzz_b+case+ufuzz_a)\n"
+                    gen_params['server_send'] =""
+                    gen_params['quit_if_server']=""
+                else: # UDP Server:
+                    gen_params['wait_for_connection_or_send']=""
+                    gen_params['server_send']="    watchLog(ufuzz_b+case+ufuzz_a,'a',resending,"+gen_params['trunca']+")\n\
+        myself."+gen_params['peer']+".send_data(ufuzz_b+case+ufuzz_a)\n"
+                    gen_params['quit_if_server']="    quit()"
+                    port = self.targetport.textfield.get()
+                    addr = self.target.textfield.get()
+                    if not self.checkIPaddr(addr):
+                        return
+                    addr = addr+":"+port
+                    cmd.extend(["-c",addr])
+
+                    if self.bind.textfield.get() =="":
+                        pass
+                    else:
+                        port = self.bindport.textfield.get()
+                        addr = self.bind.textfield.get()
+                        if not self.checkIPaddr(addr):
+                            return
+                            addr = addr+":"+port
+                            cmd.extend(["-b",addr])
+
+            else:
+                gen_params['peer']="client"
+                me="server"
+                gen_params['Me']="Server"
+                gen_params['wait_for_connection_or_send']="myself.wait_for_connection()"
+                gen_params['server_send']="    watchLog(ufuzz_b+case+ufuzz_a,'a',resending,"+trunca+")\n\
+        myself."+peer+".send_data(ufuzz_b+case+ufuzz_a)\n\
+    myself.client.close()\n" 
+                gen_params['quit_if_server'] = "    quit()"
+                port = self.listenport.textfield.get()
+                addr = self.listen.textfield.get()
+                if not self.checkIPaddr(addr):
+                    return
+                    addr = addr+":"+port
+                    cmd.extend(["-l",addr])
+
+##
+## Fixed Part
+## todo:check if file exists!!
+
+            if self.unfuzzedbefore.textfield.get() == "" or self.repeat.var.get():	
+                gen_params['ufuzzb'] = "ufuzz_b =''\n"
+            else:
+                gen_params['ufuzzb'] = "\n\
+ufuzz_b = str(RawFile('"+self.unfuzzedbefore.textfield.get()+"')[0])\n\
+if ufuzz_b[-1:] == '0a'.decode('hex'):\n\
+    ufuzz_b = ufuzz_b[:-1]\n\
+ufuzz_b.rstrip('0a'.decode('hex'))\n"
+
+            if self.unfuzzedafter.textfield.get() == "" or self.repeat.var.get():
+                gen_params['ufuzza'] = "ufuzz_a =''\n"
+            else:	
+                gen_params['ufuzza'] = "\n\
+ufuzz_a = str(RawFile('"+self.unfuzzedafter.textfield.get()+"')[0])\n\
+if ufuzz_a[-1:] == '0a'.decode('hex'):\n\
+    ufuzz_a = ufuzz_a[:-1]\n\
+ufuzz_a.rstrip('0a'.decode('hex'))\n"
+
+
+
+
+
+            gen_params['timeout']=self.timeout.textfield.var.get()
+            gen_params['sleeptime']=self.sleeptime.textfield.var.get()	
+
+##
+## 
+##
+            if self.validcase.buttonfield.var.get():
+                gen_params['if_continue'] = "with open('.target_fail','w') as af:\n\
+            pass\n\
+        quit()\n"
+            else:
+                gen_params['if_continue'] = "continue"
+##
+## Reconnect after each test case
+##
+            if self.reconnect.var.get():
+                gen_params['if_reconnect'] ="\n\
+    try:\n\
+        myself="+gen_params['Me']+"(config)\n\
+    except:\n\
+        watchLog('Cannot make connection to target...','f')\n\
+        time.sleep("+gen_params['sleeptime']+")\n\
+	"+gen_params['if_continue']+"\n"
+                gen_params['if_connect'] = ""
+                gen_params['if_reclose'] = "\n\
+    myself."+gen_params['peer']+".close()\n"
+                gen_params['if_close'] = ""
+            else:
+                gen_params['if_reconnect'] = ""
+                gen_params['if_connect'] ="# (Re)Connect to target\n\
+try:\n\
+    myself="+gen_params['Me']+"(config)\n\
+except:\n\
+    watchLog('Cannot make connection to target, quitting..','f')\n\
+    quit()\n" 
+                gen_params['if_reclose'] = ""
+                gen_params['if_close'] ="\n\
+    myself."+gen_params['peer']+".close()\n"
+
+##
+## Valid case instrumentation, only for clients
+##
+            if self.validcase.buttonfield.var.get() and self.direction.var.get()=="Client" and self.validcase.textfield.get():
+                gen_params['valid_msg'] = "valid_msg = RawFile('"+self.validcase.textfield.get()+"')"
+                gen_params['valid_case']="\n\
+    "+gen_params['if_reconnect']+"\n\
+    myself."+gen_params['peer']+".send_data(valid_msg[0],nolog=True)\n\
+    watchLog(valid_msg[0],'v')\n\
+    response=myself."+gen_params['peer']+".receive("+gen_params['timeout']+")\n\
+    if response is Timeout:\n\
+        watchLog('No response for Valid message, Quitting..','f')\n\
+        with open('.target_fail','w') as af:\n\
+            pass\n\
+        quit()\n\
+    else:\n\
+        watchLog(response,'r',False,"+gen_params['trunca']+")\n\
+    "+gen_params['if_reclose']+"\n\
+    time.sleep("+gen_params['sleeptime']+")\n"
+            else:
+                gen_params['valid_case']=''
+                gen_params['valid_msg']=''
+
+
+      
+            f = open("testscript.py","w")
+            # may be needed
+            #msg = msg.encode('utf-8')
+            #data = msg + case
+
+            if direction == "MITM Server":
+               str = self.writeMITMScript(gen_params)
+            else:
+               str = self.writeNonMITM(gen_params)
+
+            f.write(str)
+            f.close()
 
 		
-		if protocol == 'UDP':
-			cmd.extend(["-p","udp"])
-		elif protocol == 'SCTP':
-			cmd.extend(["-p","sctp"])
-		else:
-			cmd.extend(["-p","tcp"])
+            if protocol == 'UDP':
+                cmd.extend(["-p","udp"])
+            elif protocol == 'SCTP':
+                cmd.extend(["-p","sctp"])
+            else:
+                cmd.extend(["-p","tcp"])
 
-		executed = " ".join(cmd)  
-		self.executed.textfield.var.set(executed)
+            executed = " ".join(cmd)  
+            self.executed.textfield.var.set(executed)
 
-		self.killProc()
-		proc = subprocess.Popen(cmd)
-
-
+            self.killProc()
+            proc = subprocess.Popen(cmd)
 
 
 	def testForHeartbleed(self):
