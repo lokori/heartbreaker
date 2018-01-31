@@ -299,10 +299,14 @@ class BuilderFrame(tk.Frame):
 
         # dict keys: server_send, if_reclose, wait_for_connection_or_send, peer, timeout, trunca
         #            quit_if_server, Me, ufuzza, ufuzzb, valid_smg, resending, if_connect, valid_case, sleeptime
-        def writeTestscript(self, templatefile, outputfile, gen_params):            
+        def writeTestscript(self, templatefile, outputfile, gen_params, gen_rootparams):
             with open(templatefile, 'r') as myfile:
                 template=myfile.read()
             templ = Template(template)
+            # generate final template
+            lev1 = templ.safe_substitute(gen_rootparams)
+            templ = Template(lev1)
+            # make second level substitution
             strr = templ.substitute(gen_params)
             f = open(outputfile,"w")
             f.write(strr)
@@ -444,26 +448,28 @@ ufuzz_a.rstrip('0a'.decode('hex'))\n"
 ## Reconnect after each test case
 ##
             if self.reconnect.var.get():
-                gen_params['if_reconnect'] ="\n\
-    try:\n\
-        myself="+gen_params['Me']+"(config)\n\
-    except:\n\
-        watchLog('Cannot make connection to target...','f')\n\
-        time.sleep("+gen_params['sleeptime']+")\n\
-	"+gen_params['if_continue']+"\n"
-                gen_params['if_reclose'] = "\n\
-    myself."+gen_params['peer']+".close()\n"
-            else:
-                gen_params['if_connect'] ="# (Re)Connect to target\n\
-try:\n\
-    myself="+gen_params['Me']+"(config)\n\
-except:\n\
-    watchLog('Cannot make connection to target, quitting..','f')\n\
-    quit()\n" 
+                gen_rootparams['if_reconnect']="""
+    try:
+        myself=${Me}(config)
+    except:
+        watchLog('Cannot make connection to target...','f')
+        time.sleep($sleeptime)
+        $if_continue        
+"""
+                gen_rootparams['if_reclose']="""
+    myself.$peer.close()"""
 
-## TODO: onko tarpeellinen if_close
-#                gen_params['if_close'] ="\n\
-#    myself."+gen_params['peer']+".close()\n"
+            else:
+                gen_rootparams['if_connect']="""# (Re)Connect to target
+try:
+    myself=$Me(config)
+except:
+    watchLog('Cannot make connection to target, quitting..','f')
+    quit()
+"""
+                gen_rootparams['if_close'] ="""
+                myself.$peer.close()
+"""
 
 ##
 ## Valid case instrumentation, only for clients
@@ -471,21 +477,19 @@ except:\n\
             if self.validcase.buttonfield.var.get() and self.direction.var.get()=="Client" and self.validcase.textfield.get():
                 
                 gen_params['valid_msg'] = "valid_msg = RawFile('"+self.validcase.textfield.get()+"')"
-                gen_params['valid_case']="\n\
-    "+gen_params['if_reconnect']+"\n\
-    myself."+gen_params['peer']+".send_data(valid_msg[0],nolog=True)\n\
-    watchLog(valid_msg[0],'v')\n\
-    response=myself."+gen_params['peer']+".receive("+gen_params['timeout']+")\n\
-    if response is Timeout:\n\
-        watchLog('No response for Valid message, Quitting..','f')\n\
-        with open('.target_fail','w') as af:\n\
-            pass\n\
-        quit()\n\
-    else:\n\
-        watchLog(response,'r',False,"+gen_params['trunca']+")\n\
-    "+gen_params['if_reclose']+"\n\
-    time.sleep("+gen_params['sleeptime']+")\n"
-      
+                gen_rootparams['valid_case'] = """
+    $if_reconnect
+    myself.$peer.send_data(valid_msg[0],nolog=True)
+    watchLog(valid_msg[0],'v')
+    response=myself.$peer.receive($timeout)
+    if response is Timeout:
+        watchLog('No response for Valid message, Quitting..','f')
+    else:
+        wathLog(response, 'r',False,$trunca)
+    $if_reclose
+    time.sleep($sleeptime)
+    """
+                      
             # may be needed
             #msg = msg.encode('utf-8')
             #data = msg + case
@@ -508,10 +512,10 @@ except:\n\
                 addr = addr+":"+port
                 cmd.extend(["-c",addr])
 
-                self.writeTestscript('mitm-testscript.template','testscript.py', gen_params)
+                self.writeTestscript('mitm-testscript.template','testscript.py', gen_params, gen_rootparams)
 
             else:
-                self.writeTestscript('nonmitm-testscript.template', 'testscript.py', gen_params)
+                self.writeTestscript('nonmitm-testscript.template', 'testscript.py', gen_params, gen_rootparams)
 
 		
             if protocol == 'UDP':
