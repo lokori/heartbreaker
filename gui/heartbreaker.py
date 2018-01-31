@@ -412,6 +412,10 @@ while True:\n\
             # Truncate messages in WatchLog or not
             gen_params['trunca'] = str(notrunc.var.get())
 
+            if self.inputfile.buttonfield.var.get():
+                input_dir_file = self.inputfile.textfield.var.get()
+            else:
+                input_dir_file = self.sampledir.textfield.var.get()
 
             if self.repeat.var.get():
                 gen_params['resending']="resending = True"
@@ -423,14 +427,8 @@ while True:\n\
                 if self.last.buttonfield.var.get():
                     cmd.extend(["--last", self.last.textfield.var.get()])
                 if self.inputfile.buttonfield.var.get():
-                    #if self.inputfile.textfield.cget('state')== 'enabled':
-                    input_dir_file = self.inputfile.textfield.var.get()
                     cmd.extend(["-i",input_dir_file])
             else:
-                if not self.inputfile.buttonfield.var.get(): #self.sampledir.textfield.cget('state')== 'enabled':
-                    input_dir_file = self.sampledir.textfield.var.get()
-                else:
-                    input_dir_file = self.inputfile.textfield.var.get()
                 cmd.extend(["-i",input_dir_file])
                 gen_params['resending']="resending = False"
 
