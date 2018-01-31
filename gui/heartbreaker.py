@@ -320,7 +320,8 @@ class BuilderFrame(tk.Frame):
             # clear all code generator parameters
             for k in ['server_send','if_reclose','wait_for_connection_or_send','peer','timeout','trunca','quit_if_server','Me',
                       'ufuzza','ufuzzb','valid_msg','resending','if_connect','valid_case','sleeptime']: gen_params[k] = ''
-
+            gen_rootparams = dict()
+            
             # check addresses
             cmd = ['python',testscript]
             
@@ -332,8 +333,9 @@ class BuilderFrame(tk.Frame):
             else:
                 input_dir_file = self.sampledir.textfield.var.get()
 
+
             if self.repeat.var.get():
-                gen_params['resending']="resending = True"
+                gen_params['resending'] = "resending=True"
                 cmd.append("-r")
                 if self.fromtime.buttonfield.var.get():
                     cmd.extend(["-f",self.fromtime.textfield.var.get()])
@@ -345,7 +347,7 @@ class BuilderFrame(tk.Frame):
                     cmd.extend(["-i",input_dir_file])
             else:
                 cmd.extend(["-i",input_dir_file])
-                gen_params['resending']="resending = False"
+                gen_params['resending']="resending=False"
 
             if self.loop.var.get():
                 cmd.append("--loop")
@@ -420,8 +422,8 @@ if ufuzz_b[-1:] == '0a'.decode('hex'):\n\
 ufuzz_b.rstrip('0a'.decode('hex'))\n"
 
             if self.unfuzzedafter.textfield.get() == "" or self.repeat.var.get():
-                gen_params['ufuzza'] = "ufuzz_a =''\n"
-            else:	
+                gen_params['ufuzza'] = "ufuzz_a = ''\n"
+            else:
                 gen_params['ufuzza'] = "\n\
 ufuzz_a = str(RawFile('"+self.unfuzzedafter.textfield.get()+"')[0])\n\
 if ufuzz_a[-1:] == '0a'.decode('hex'):\n\
@@ -467,6 +469,7 @@ except:\n\
 ## Valid case instrumentation, only for clients
 ##
             if self.validcase.buttonfield.var.get() and self.direction.var.get()=="Client" and self.validcase.textfield.get():
+                
                 gen_params['valid_msg'] = "valid_msg = RawFile('"+self.validcase.textfield.get()+"')"
                 gen_params['valid_case']="\n\
     "+gen_params['if_reconnect']+"\n\
