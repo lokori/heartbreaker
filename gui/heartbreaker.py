@@ -356,9 +356,6 @@ class BuilderFrame(tk.Frame):
             if self.count.buttonfield.var.get():
                 cmd.extend(["--count", self.count.textfield.var.get()])
 
-		#log_file = self.logdir.textfield.var.get()
-		#cmd.extend(["-L",log_file])
-
 		##
 		##  Direction: Client, Server, (MITM)
 		##
@@ -374,26 +371,25 @@ class BuilderFrame(tk.Frame):
 "watchLog(ufuzz_b+case+ufuzz_a,'a',resending,"+gen_params['trunca']+")\n\
     myself."+gen_params['peer']+".send_data(ufuzz_b+case+ufuzz_a)\n"
                 else: # UDP Server:
-                    gen_params['wait_for_connection_or_send']=""
                     gen_params['server_send']="    watchLog(ufuzz_b+case+ufuzz_a,'a',resending,"+gen_params['trunca']+")\n\
         myself."+gen_params['peer']+".send_data(ufuzz_b+case+ufuzz_a)\n"
                     gen_params['quit_if_server']="    quit()"
-                    port = self.targetport.textfield.get()
-                    addr = self.target.textfield.get()
+                port = self.targetport.textfield.get()
+                addr = self.target.textfield.get()
+                if not self.checkIPaddr(addr):
+                    return
+                addr = addr+":"+port
+                cmd.extend(["-c",addr])
+
+                if self.bind.textfield.get() =="":
+                    pass
+                else:
+                    port = self.bindport.textfield.get()
+                    addr = self.bind.textfield.get()
                     if not self.checkIPaddr(addr):
                         return
                     addr = addr+":"+port
-                    cmd.extend(["-c",addr])
-
-                    if self.bind.textfield.get() =="":
-                        pass
-                    else:
-                        port = self.bindport.textfield.get()
-                        addr = self.bind.textfield.get()
-                        if not self.checkIPaddr(addr):
-                            return
-                            addr = addr+":"+port
-                            cmd.extend(["-b",addr])
+                    cmd.extend(["-b",addr])
 
             else:
                 gen_params['peer']="client"
@@ -690,7 +686,7 @@ def ask_quit():
 #-----------------------------------------
 def main():
 	root = tk.Tk()
-	root.title('Heartbreaker v0.00')
+	root.title('Heartbreaker v0.01')
 	root.rowconfigure(0, weight=1)
 	root.columnconfigure(0, weight=1)
 	mainApp = MainApplication(root).grid(sticky=W+E+N+S)
