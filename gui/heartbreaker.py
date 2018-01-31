@@ -420,7 +420,10 @@ while True:\n\
                 testscript = "testscript.py"
 		
             gen_params = dict()
-            gen_params['resending'] = ""
+            # clear all code generator parameters
+            for k in ['server_send','if_reclose','wait_for_connection_or_send','peer','timeout','trunca','quit_if_server','Me',
+                      'ufuzza','ufuzzb','valid_msg','resending','if_connect','valid_case','sleeptime']: gen_params[k] = ''
+
             # check addresses
             cmd = ['python',testscript]
             
@@ -540,15 +543,9 @@ if ufuzz_a[-1:] == '0a'.decode('hex'):\n\
     ufuzz_a = ufuzz_a[:-1]\n\
 ufuzz_a.rstrip('0a'.decode('hex'))\n"
 
-
-
-
-
             gen_params['timeout']=self.timeout.textfield.var.get()
             gen_params['sleeptime']=self.sleeptime.textfield.var.get()	
 
-##
-## 
 ##
             if self.validcase.buttonfield.var.get():
                 gen_params['if_continue'] = "with open('.target_fail','w') as af:\n\
@@ -567,21 +564,19 @@ ufuzz_a.rstrip('0a'.decode('hex'))\n"
         watchLog('Cannot make connection to target...','f')\n\
         time.sleep("+gen_params['sleeptime']+")\n\
 	"+gen_params['if_continue']+"\n"
-                gen_params['if_connect'] = ""
                 gen_params['if_reclose'] = "\n\
     myself."+gen_params['peer']+".close()\n"
-                gen_params['if_close'] = ""
             else:
-                gen_params['if_reconnect'] = ""
                 gen_params['if_connect'] ="# (Re)Connect to target\n\
 try:\n\
     myself="+gen_params['Me']+"(config)\n\
 except:\n\
     watchLog('Cannot make connection to target, quitting..','f')\n\
     quit()\n" 
-                gen_params['if_reclose'] = ""
-                gen_params['if_close'] ="\n\
-    myself."+gen_params['peer']+".close()\n"
+
+## TODO: onko tarpeellinen if_close
+#                gen_params['if_close'] ="\n\
+#    myself."+gen_params['peer']+".close()\n"
 
 ##
 ## Valid case instrumentation, only for clients
@@ -602,11 +597,6 @@ except:\n\
         watchLog(response,'r',False,"+gen_params['trunca']+")\n\
     "+gen_params['if_reclose']+"\n\
     time.sleep("+gen_params['sleeptime']+")\n"
-            else:
-                gen_params['valid_case']=''
-                gen_params['valid_msg']=''
-
-
       
             f = open("testscript.py","w")
             # may be needed
