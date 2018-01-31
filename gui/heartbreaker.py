@@ -414,7 +414,7 @@ while True:\n\
 
 
             if self.repeat.var.get():
-                resending="resending = True"
+                gen_params['resending']="resending = True"
                 cmd.append("-r")
                 if self.fromtime.buttonfield.var.get():
                     cmd.extend(["-f",self.fromtime.textfield.var.get()])
@@ -432,7 +432,7 @@ while True:\n\
                 else:
                     input_dir_file = self.inputfile.textfield.var.get()
                 cmd.extend(["-i",input_dir_file])
-                resending="resending = False"
+                gen_params['resending']="resending = False"
 
             if self.loop.var.get():
                 cmd.append("--loop")
