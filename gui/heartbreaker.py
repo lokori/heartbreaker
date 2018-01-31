@@ -298,25 +298,7 @@ class BuilderFrame(tk.Frame):
 			return False
 
         def writeMITMscript(self, gen_params):
-            port = self.bindport.textfield.get()
-            addr = self.bind.textfield.get()
-            
-            if not self.checkIPaddr(addr):
-                return
-            
-            addr = addr+":"+port
-            cmd.extend(["-b",addr])
-            
-            port = self.targetport.textfield.get()
-            addr = self.target.textfield.get()
-            if not self.checkIPaddr(addr):
-                return
-                
-            addr = addr+":"+port
-            cmd.extend(["-c",addr])
-                    
-                    
-            str="\
+            strr="\
 #!/usr/bin/python\n\
 from network import *\n\
 from config import *\n\
@@ -341,10 +323,10 @@ class FuzzMitm(MITMServer):\n\
 \n\
 server=FuzzMitm(config)\n\
 asyncore.loop()\n"
-            return str
+            return strr
 
         def writeNonMITM(self, gen_params):
-            str="\
+            strr="\
 #!/usr/bin/python\n\
 from network import *\n\
 from config import *\n\
@@ -398,7 +380,7 @@ while True:\n\
     time.sleep("+gen_params['sleeptime']+")\n\
     "
                     
-            return str
+            return strr
         
         # non mitm attack
         # dict keys: server_send, if_reclose, wait_for_connection_or_send, peer, timeout, trunca
@@ -407,8 +389,8 @@ while True:\n\
             fname = 'template_script.pytempl'
             with open(fname, 'r') as myfile:
                 template=myfile.read()
-            str = template.substitute(d)
-            f.write(str)
+            strr = template.substitute(d)
+            f.write(strr)
             f.close()
 
         def executeCommand(self):
@@ -428,31 +410,29 @@ while True:\n\
             cmd = ['python',testscript]
             
             # Truncate messages in WatchLog or not
-            if notrunc.var.get():
-                gen_params['trunca'] = 'False'
-            else:
-                gen_params['trunca'] = 'True'
+            gen_params['trunca'] = str(notrunc.var.get())
+
 
             if self.repeat.var.get():
-                gen_params['resending']="resending = True"
+                resending="resending = True"
                 cmd.append("-r")
                 if self.fromtime.buttonfield.var.get():
                     cmd.extend(["-f",self.fromtime.textfield.var.get()])
-                    if self.totime.buttonfield.var.get():
-                        cmd.extend(["-t",self.totime.textfield.var.get()])
-			if self.last.buttonfield.var.get():
-                            cmd.extend(["--last", self.last.textfield.var.get()])
-			if self.inputfile.buttonfield.var.get():
-			#if self.inputfile.textfield.cget('state')== 'enabled':
-                            input_dir_file = self.inputfile.textfield.var.get()
-                            cmd.extend(["-i",input_dir_file])
+                if self.totime.buttonfield.var.get():
+                    cmd.extend(["-t",self.totime.textfield.var.get()])
+                if self.last.buttonfield.var.get():
+                    cmd.extend(["--last", self.last.textfield.var.get()])
+                if self.inputfile.buttonfield.var.get():
+                    #if self.inputfile.textfield.cget('state')== 'enabled':
+                    input_dir_file = self.inputfile.textfield.var.get()
+                    cmd.extend(["-i",input_dir_file])
             else:
                 if not self.inputfile.buttonfield.var.get(): #self.sampledir.textfield.cget('state')== 'enabled':
                     input_dir_file = self.sampledir.textfield.var.get()
                 else:
                     input_dir_file = self.inputfile.textfield.var.get()
-                    cmd.extend(["-i",input_dir_file])
-                    gen_params['resending']="resending = False"
+                cmd.extend(["-i",input_dir_file])
+                resending="resending = False"
 
             if self.loop.var.get():
                 cmd.append("--loop")
@@ -475,14 +455,11 @@ while True:\n\
             # In case of UDP, use Client even if it a server 
             if direction == "Client" or (protocol == 'UDP'):
                 gen_params['peer']="server"
-                me="client"
                 gen_params['Me']="Client"
                 if direction == "Client":
                     gen_params['wait_for_connection_or_send']=\
 "watchLog(ufuzz_b+case+ufuzz_a,'a',resending,"+gen_params['trunca']+")\n\
     myself."+gen_params['peer']+".send_data(ufuzz_b+case+ufuzz_a)\n"
-                    gen_params['server_send'] =""
-                    gen_params['quit_if_server']=""
                 else: # UDP Server:
                     gen_params['wait_for_connection_or_send']=""
                     gen_params['server_send']="    watchLog(ufuzz_b+case+ufuzz_a,'a',resending,"+gen_params['trunca']+")\n\
@@ -507,7 +484,7 @@ while True:\n\
 
             else:
                 gen_params['peer']="client"
-                me="server"
+#                me="server"
                 gen_params['Me']="Server"
                 gen_params['wait_for_connection_or_send']="myself.wait_for_connection()"
                 gen_params['server_send']="    watchLog(ufuzz_b+case+ufuzz_a,'a',resending,"+trunca+")\n\
@@ -604,11 +581,28 @@ except:\n\
             #data = msg + case
 
             if direction == "MITM Server":
-               str = self.writeMITMScript(gen_params)
-            else:
-               str = self.writeNonMITM(gen_params)
+                port = self.bindport.textfield.get()
+                addr = self.bind.textfield.get()
+            
+                if not self.checkIPaddr(addr):
+                    return
+            
+                addr = addr+":"+port
+                cmd.extend(["-b",addr])
+            
+                port = self.targetport.textfield.get()
+                addr = self.target.textfield.get()
+                if not self.checkIPaddr(addr):
+                    return
+                
+                addr = addr+":"+port
+                cmd.extend(["-c",addr])
 
-            f.write(str)
+                strr = self.writeMITMScript(gen_params)
+            else:
+                strr = self.writeNonMITM(gen_params)
+
+            f.write(strr)
             f.close()
 
 		

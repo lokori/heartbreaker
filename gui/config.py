@@ -34,6 +34,8 @@ def addrparse(addr_str):
 
 config = {}
 
+# Parses the arguments for testscript either from a configuration file
+# or from command line parameters
 class BaseOptionParser(OptionParser):
   def __init__(self,filename=None):
     OptionParser.__init__(self)
