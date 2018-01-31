@@ -1,0 +1,24 @@
+#!/usr/bin/python
+from network import *
+from config import *
+from watchlog import *
+from subprocess import Popen, PIPE, STDOUT
+
+config = MITMConfig()
+
+class FuzzMitm(MITMServer):
+  def fuzz(self, data):
+    watchLog(data,'r',False,$trunca)
+    fuzzed = data
+    while fuzzed == data:
+      p = Popen('radamsa', stdout=PIPE, stdin=PIPE, stderr=STDOUT)
+      fuzzed=p.communicate(input=data)[0]
+    data = fuzzed
+    watchLog(data,'a',False,$trunca)
+    return data
+
+  def handle_connection(self):
+    self.client.send_hook=self.fuzz
+
+server=FuzzMitm(config)
+asyncore.loop()

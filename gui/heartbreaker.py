@@ -297,99 +297,14 @@ class BuilderFrame(tk.Frame):
 			tkMessageBox.showwarning("Error","Invalid Target IP Address\n(%s)" % addr)
 			return False
 
-        def writeMITMscript(self, gen_params):
-            strr="\
-#!/usr/bin/python\n\
-from network import *\n\
-from config import *\n\
-from watchlog import *\n\
-from subprocess import Popen, PIPE, STDOUT\n\
-\n\
-config = MITMConfig()\n\
-\n\
-class FuzzMitm(MITMServer):\n\
-  def fuzz(self, data):\n\
-    watchLog(data,'r',False,"+gen_params['trunca']+")\n\
-    fuzzed = data\n\
-    while fuzzed == data:\n\
-      p = Popen('radamsa', stdout=PIPE, stdin=PIPE, stderr=STDOUT)\n\
-      fuzzed=p.communicate(input=data)[0]\n\
-    data = fuzzed\n\
-    watchLog(data,'a',False,"+gen_params['trunca']+")\n\
-    return data\n\
-\n\
-  def handle_connection(self):\n\
-    self.client.send_hook=self.fuzz\n\
-\n\
-server=FuzzMitm(config)\n\
-asyncore.loop()\n"
-            return strr
-
-        def writeNonMITM(self, gen_params):
-            strr="\
-#!/usr/bin/python\n\
-from network import *\n\
-from config import *\n\
-from watchlog import *\n\
-from binascii import *\n\
-import signal\n\
-\n\
-global terminate_s\n\
-terminate_s = False\n\
-def receive_signal(signum, stack):\n\
-    global terminate_s\n\
-    terminate_s=True\n\
-"+gen_params['quit_if_server']+"\n\
-signal.signal(signal.SIGTERM, receive_signal)\n\
-\n\
-config ="+gen_params['Me']+"Config()\n\
-\n\
-f = open_input(config.input, config)\n\
-if config.fuzz:\n\
-    f=Fuzzer(f, config.out_dir)\n\
-\n\
-"+gen_params['ufuzzb']+"\n\
-"+gen_params['ufuzza']+"\n\
-"+gen_params['valid_msg']+"\n\
-"+gen_params['resending']+"\n\
-"+gen_params['if_connect']+"\n\
-while True:\n\
-    if terminate_s:\n\
-        quit()\n\
-    "+gen_params['valid_case']+"\n\
-    "+gen_params['if_reconnect']+"\n\
-    # Get a new test case or resending case\n\
-    case=f.next()\n\
-    # Remove the last newline from the end, if any\n\
-    if not resending:\n\
-        if case[-1:] == '0a'.decode('hex'):\n\
-            case = case[:-1]\n\
-        case.rstrip('0a'.decode('hex'))\n\
-    "+gen_params['wait_for_connection_or_send']+"\n\
-    reply=myself."+gen_params['peer']+".receive("+gen_params['timeout']+")\n\
-    if reply is Timeout:\n\
-        watchLog('No response for fuzzed message','w')\n\
-        if os.path.isfile('.target_resp'):\n\
-            os.remove('.target_resp')\n\
-    else:\n\
-        watchLog(reply,'r',False,"+gen_params['trunca']+")\n\
-        with open('.target_resp','w') as af:\n\
-            pass\n\
-    "+gen_params['server_send']+"\n\
-    "+gen_params['if_reclose']+"\n\
-    time.sleep("+gen_params['sleeptime']+")\n\
-    "
-                    
-            return strr
-        
-        # non mitm attack
         # dict keys: server_send, if_reclose, wait_for_connection_or_send, peer, timeout, trunca
         #            quit_if_server, Me, ufuzza, ufuzzb, valid_smg, resending, if_connect, valid_case, sleeptime
-        def writeTestscript(self, outputfile):
-            fname = 'template_script.pytempl'
-            with open(fname, 'r') as myfile:
+        def writeTestscript(self, templatefile, outputfile, gen_params):            
+            with open(templatefile, 'r') as myfile:
                 template=myfile.read()
-            strr = template.substitute(d)
+            templ = Template(template)
+            strr = templ.substitute(gen_params)
+            f = open(outputfile,"w")
             f.write(strr)
             f.close()
 
@@ -482,7 +397,6 @@ while True:\n\
 
             else:
                 gen_params['peer']="client"
-#                me="server"
                 gen_params['Me']="Server"
                 gen_params['wait_for_connection_or_send']="myself.wait_for_connection()"
                 gen_params['server_send']="    watchLog(ufuzz_b+case+ufuzz_a,'a',resending,"+trunca+")\n\
@@ -573,7 +487,6 @@ except:\n\
     "+gen_params['if_reclose']+"\n\
     time.sleep("+gen_params['sleeptime']+")\n"
       
-            f = open("testscript.py","w")
             # may be needed
             #msg = msg.encode('utf-8')
             #data = msg + case
@@ -596,12 +509,10 @@ except:\n\
                 addr = addr+":"+port
                 cmd.extend(["-c",addr])
 
-                strr = self.writeMITMScript(gen_params)
-            else:
-                strr = self.writeNonMITM(gen_params)
+                self.writeTestscript('mitm-testscript.template','testscript.py', gen_params)
 
-            f.write(strr)
-            f.close()
+            else:
+                self.writeTestscript('nonmitm-testscript.template', 'testscript.py', gen_params)
 
 		
             if protocol == 'UDP':
