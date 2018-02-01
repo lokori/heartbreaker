@@ -330,7 +330,10 @@ class BuilderFrame(tk.Frame):
             cmd = ['python',testscript]
             
             # Truncate messages in WatchLog or not
-            gen_params['trunca'] = str(notrunc.var.get())
+            if notrunc.var.get():
+                gen_params['trunca'] = 'False'
+            else:
+                gen_params['trunca'] = 'True'
 
             if self.inputfile.buttonfield.var.get():
                 input_dir_file = self.inputfile.textfield.var.get()
@@ -415,6 +418,8 @@ class BuilderFrame(tk.Frame):
 ##
 ## Fixed Part
 ## todo:check if file exists!!
+
+## TODO: rstrip ja :-1 do the same thing. Remove IF and use rstrip?
 
             if self.unfuzzedbefore.textfield.get() == "" or self.repeat.var.get():	
                 gen_params['ufuzzb'] = "ufuzz_b =''\n"
