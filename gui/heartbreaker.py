@@ -376,12 +376,12 @@ class BuilderFrame(tk.Frame):
                 gen_params['peer']="server"
                 gen_params['Me']="Client"
                 if direction == "Client":
-                    gen_params['wait_for_connection_or_send']=\
-"watchLog(ufuzz_b+case+ufuzz_a,'a',resending,"+gen_params['trunca']+")\n\
-    myself."+gen_params['peer']+".send_data(ufuzz_b+case+ufuzz_a)\n"
+                    gen_rootparams['wait_for_connection_or_send']=\
+"watchLog(ufuzz_b+case+ufuzz_a,'a',resending,$trunca)\n\
+    myself.$peer.send_data(ufuzz_b+case+ufuzz_a)\n"
                 else: # UDP Server:
-                    gen_params['server_send']="    watchLog(ufuzz_b+case+ufuzz_a,'a',resending,"+gen_params['trunca']+")\n\
-        myself."+gen_params['peer']+".send_data(ufuzz_b+case+ufuzz_a)\n"
+                    gen_rootparams['server_send']="    watchLog(ufuzz_b+case+ufuzz_a,'a',resending,$trunca\n\
+        myself.$peer.send_data(ufuzz_b+case+ufuzz_a)\n"
                     gen_params['quit_if_server']="    quit()"
                 port = self.targetport.textfield.get()
                 addr = self.target.textfield.get()
@@ -404,8 +404,8 @@ class BuilderFrame(tk.Frame):
                 gen_params['peer']="client"
                 gen_params['Me']="Server"
                 gen_params['wait_for_connection_or_send']="myself.wait_for_connection()"
-                gen_params['server_send']="    watchLog(ufuzz_b+case+ufuzz_a,'a',resending,"+trunca+")\n\
-        myself."+peer+".send_data(ufuzz_b+case+ufuzz_a)\n\
+                gen_rootparams['server_send']="    watchLog(ufuzz_b+case+ufuzz_a,'a',resending,$trunca)\n\
+        myself.$peer.send_data(ufuzz_b+case+ufuzz_a)\n\
     myself.client.close()\n" 
                 gen_params['quit_if_server'] = "    quit()"
                 port = self.listenport.textfield.get()
