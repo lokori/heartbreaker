@@ -36,9 +36,7 @@ while True:
     case=f.next()
     # Remove the last newline from the end, if any
     if not resending:
-        if case[-1:] == '0a'.decode('hex'):
-            case = case[:-1]
-        case.rstrip('0a'.decode('hex'))
+        case = case.rstrip('0a'.decode('hex'))
 
     $wait_for_connection_or_send
 
