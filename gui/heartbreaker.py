@@ -297,17 +297,27 @@ class BuilderFrame(tk.Frame):
 			tkMessageBox.showwarning("Error","Invalid Target IP Address\n(%s)" % addr)
 			return False
 
-        # dict keys: server_send, if_reclose, wait_for_connection_or_send, peer, timeout, trunca
-        #            quit_if_server, Me, ufuzza, ufuzzb, valid_smg, resending, if_connect, valid_case, sleeptime
+        # dict keys: server_send, wait_for_connection_or_send, peer, timeout, trunca
+        #            Me, ufuzza, ufuzzb, valid_smg, resending, sleeptime
         def writeTestscript(self, templatefile, outputfile, gen_params, gen_rootparams):
             with open(templatefile, 'r') as myfile:
                 template=myfile.read()
+
+            for k in ['if_reconnect', 'valid_case', 'quit_if_server', 'if_reclose', 'if_connect']:
+                tspl = template.split('$##'+k)
+                if gen_rootparams.get(k) == None:
+                    # print 'not using optional part: ' + k
+                    template = tspl[0] + tspl[2]
+                else:
+                    # print 'using optional ' + k
+                    template = tspl[0] + tspl[1] + tspl[2]
+
             templ = Template(template)
             # generate final template
             lev1 = templ.safe_substitute(gen_rootparams)
             templ = Template(lev1)
             # make second level substitution
-            strr = templ.substitute(gen_params)
+            strr = templ.safe_substitute(gen_params)
             f = open(outputfile,"w")
             f.write(strr)
             f.close()
@@ -322,8 +332,8 @@ class BuilderFrame(tk.Frame):
 		
             gen_params = dict()
             # clear all code generator parameters
-            for k in ['server_send','if_reclose','wait_for_connection_or_send','peer','timeout','trunca','quit_if_server','Me',
-                      'ufuzza','ufuzzb','valid_msg','resending','if_connect','valid_case','sleeptime']: gen_params[k] = ''
+            for k in ['server_send','wait_for_connection_or_send','peer','timeout','trunca','Me',
+                      'ufuzza','ufuzzb','valid_msg','resending','sleeptime']: gen_params[k] = ''
             gen_rootparams = dict()
             
             # check addresses
@@ -382,7 +392,7 @@ class BuilderFrame(tk.Frame):
                 else: # UDP Server:
                     gen_rootparams['server_send']="    watchLog(ufuzz_b+case+ufuzz_a,'a',resending,$trunca\n\
         myself.$peer.send_data(ufuzz_b+case+ufuzz_a)\n"
-                    gen_params['quit_if_server']="    quit()"
+                    gen_rootparams['quit_if_server']="enabled"
                 port = self.targetport.textfield.get()
                 addr = self.target.textfield.get()
                 if not self.checkIPaddr(addr):
@@ -407,93 +417,53 @@ class BuilderFrame(tk.Frame):
                 gen_rootparams['server_send']="    watchLog(ufuzz_b+case+ufuzz_a,'a',resending,$trunca)\n\
         myself.$peer.send_data(ufuzz_b+case+ufuzz_a)\n\
     myself.client.close()\n" 
-                gen_params['quit_if_server'] = "    quit()"
+                gen_rootparams['quit_if_server'] = "enabled"
                 port = self.listenport.textfield.get()
                 addr = self.listen.textfield.get()
                 if not self.checkIPaddr(addr):
                     return
                     addr = addr+":"+port
                     cmd.extend(["-l",addr])
-
 ##
 ## Fixed Part
 ## todo:check if file exists!!
-
-## TODO: rstrip ja :-1 do the same thing. Remove IF and use rstrip?
-
             if self.unfuzzedbefore.textfield.get() == "" or self.repeat.var.get():	
                 gen_params['ufuzzb'] = "ufuzz_b =''\n"
             else:
                 gen_params['ufuzzb'] = "\n\
 ufuzz_b = str(RawFile('"+self.unfuzzedbefore.textfield.get()+"')[0])\n\
-if ufuzz_b[-1:] == '0a'.decode('hex'):\n\
-    ufuzz_b = ufuzz_b[:-1]\n\
-ufuzz_b.rstrip('0a'.decode('hex'))\n"
+ufuzz_b = ufuzz_b.rstrip('0a'.decode('hex'))\n"
 
             if self.unfuzzedafter.textfield.get() == "" or self.repeat.var.get():
                 gen_params['ufuzza'] = "ufuzz_a = ''\n"
             else:
                 gen_params['ufuzza'] = "\n\
 ufuzz_a = str(RawFile('"+self.unfuzzedafter.textfield.get()+"')[0])\n\
-if ufuzz_a[-1:] == '0a'.decode('hex'):\n\
-    ufuzz_a = ufuzz_a[:-1]\n\
-ufuzz_a.rstrip('0a'.decode('hex'))\n"
+ufuzz_a = ufuzz_a.rstrip('0a'.decode('hex'))\n"
 
             gen_params['timeout']=self.timeout.textfield.var.get()
             gen_params['sleeptime']=self.sleeptime.textfield.var.get()	
 
-##
             if self.validcase.buttonfield.var.get():
                 gen_params['if_continue'] = "with open('.target_fail','w') as af:\n\
             pass\n\
         quit()\n"
             else:
                 gen_params['if_continue'] = "continue"
-##
-## Reconnect after each test case
-##
+
+            ## Reconnect after each test case
             if self.reconnect.var.get():
-                gen_rootparams['if_reconnect']="""
-    try:
-        myself=${Me}(config)
-    except:
-        watchLog('Cannot make connection to target...','f')
-        time.sleep($sleeptime)
-        $if_continue        
-"""
-                gen_rootparams['if_reclose']="""
-    myself.$peer.close()"""
-
+                gen_rootparams['if_reconnect']="enabled"
+                gen_rootparams['if_reclose']="enabled"
             else:
-                gen_rootparams['if_connect']="""# (Re)Connect to target
-try:
-    myself=$Me(config)
-except:
-    watchLog('Cannot make connection to target, quitting..','f')
-    quit()
-"""
-                gen_rootparams['if_close'] ="""
-                myself.$peer.close()
-"""
+                gen_rootparams['if_connect']="enabled"
 
-##
-## Valid case instrumentation, only for clients
-##
+
+            ## Valid case instrumentation, only for clients
             if self.validcase.buttonfield.var.get() and self.direction.var.get()=="Client" and self.validcase.textfield.get():
                 
                 gen_params['valid_msg'] = "valid_msg = RawFile('"+self.validcase.textfield.get()+"')"
-                gen_rootparams['valid_case'] = """
-    $if_reconnect
-    myself.$peer.send_data(valid_msg[0],nolog=True)
-    watchLog(valid_msg[0],'v')
-    response=myself.$peer.receive($timeout)
-    if response is Timeout:
-        watchLog('No response for Valid message, Quitting..','f')
-    else:
-        wathLog(response, 'r',False,$trunca)
-    $if_reclose
-    time.sleep($sleeptime)
-    """
+                gen_rootparams['valid_case'] = "enabled"
                       
             # may be needed
             #msg = msg.encode('utf-8')
@@ -520,7 +490,7 @@ except:
                 self.writeTestscript('mitm-testscript.template','testscript.py', gen_params, gen_rootparams)
 
             else:
-                self.writeTestscript('nonmitm-testscript.template', 'testscript.py', gen_params, gen_rootparams)
+                self.writeTestscript('nonmitm-testscript.template2', 'testscript.py', gen_params, gen_rootparams)
 
 		
             if protocol == 'UDP':

@@ -1,0 +1,88 @@
+#!/usr/bin/python
+from network import *
+from config import *
+from watchlog import *
+from binascii import *
+import signal
+
+global terminate_s
+terminate_s = False
+def receive_signal(signum, stack):
+    global terminate_s
+    terminate_s=True
+
+$##quit_if_server ## OPTIONAL
+    quit()
+$##quit_if_server
+
+signal.signal(signal.SIGTERM, receive_signal)
+
+config = ${Me}Config()
+
+f = open_input(config.input, config)
+if config.fuzz:
+    f=Fuzzer(f, config.out_dir)
+
+$ufuzzb
+$ufuzza
+$valid_msg
+$resending
+
+$##if_connect ## OPTIONAL if_connect
+# (Re)Connect to target
+try:
+    myself=$Me(config)
+except:
+    watchLog('Cannot make connection to target, quitting..','f')
+    quit()
+$##if_connect
+
+while True:
+    if terminate_s:
+        quit()
+
+    $##valid_case       ## OPTIONAL valid_case
+    $if_reconnect
+    myself.$peer.send_data(valid_msg[0],nolog=True)
+    watchLog(valid_msg[0],'v')
+    response=myself.$peer.receive($timeout)
+    if response is Timeout:
+        watchLog('No response for Valid message, Quitting..','f')
+    else:
+        wathLog(response, 'r',False,$trunca)
+    $if_reclose
+    time.sleep($sleeptime)
+    $##valid_case
+
+    $##if_reconnect  ## OPTIONAL if_reconnect
+    try:
+        myself=${Me}(config)
+    except:
+        watchLog('Cannot make connection to target...','f')
+        time.sleep($sleeptime)
+        $if_continue    
+    $##if_reconnect
+
+    # Get a new test case or resending case
+    case=f.next()
+    # Remove the last newline from the end, if any
+    if not resending:
+        case = case.rstrip('0a'.decode('hex'))
+
+    $wait_for_connection_or_send
+
+    reply=myself.$peer.receive($timeout)
+    if reply is Timeout:
+        watchLog('No response for fuzzed message','w')
+        if os.path.isfile('.target_resp'):
+            os.remove('.target_resp')
+    else:
+        watchLog(reply,'r',False,$trunca)
+        with open('.target_resp','w') as af:
+            pass
+    $server_send
+
+    $##if_reclose     ### OPTIONAL if_reclose
+    myself.$peer.close()
+    $##if_reclose
+    time.sleep($sleeptime)
