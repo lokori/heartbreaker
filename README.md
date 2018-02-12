@@ -4,14 +4,24 @@ Heartbreaker is a simple GUI for Radamsa which makes fuzz testing of any client 
 
 The name and some of the visual design refers to the goal of crashing the remote application (break it's heart).
 Also, as an addition, it includes is a test for infamous [Heartbleed bug](http://heartbleed.com/) found by Codenomicon (Synopsys). The  code for that test is adopted from internet, Original PoC by Jared Stafford (jspenguin@jspenguin.org).
- 
 
-# Credits:
+# How does it work
 
-* The Heartbreaker GUI is written in Python by Jussi Rämö. 
-* [Radamsa](https://github.com/aoh/radamsa) is a fuzzing engine written by Aki Helin.
-* [Swizzfuzz](https://github.com/ouspg/swissfuzz/) is a project of OUSPG.
-* Virtual machine setup scripts for the GUI by Antti Virtanen.
+Heartbreaker is a not only a GUI for [Radamsa](https://github.com/aoh/radamsa) fuzzing engine, rather it's a GUI for generating fuzzers you can run from the command line. It generates Python code that can be used without the GUI. Interface to Radamsa is handled by the [Swissfuzz](https://github.com/ouspg/swissfuzz) Python library through the file system. This is not the most elegant way, but works reasonably well for simple purposes.
+
+**High level overview**
+
+![Heartbreaker overview](heartbreaker.jpg)
+
+The GUI generates Python code, which it runs as an external process through the operating system. The GUI can see how the fuzzing happens through a log file, which also serves as a record for interesting test cases if something is found. This is a bit messy, but also allows you to use Heartbreaker to simply generate templates to create customized special fuzzers for your own purposes.
+
+## How code is generated
+
+Code is based on templates, such as this: (https://github.com/lokori/heartbreaker/blob/master/gui/nonmitm-testscript.template)
+
+The template contains placeholders which are replaced by the GUI according to parameters set by the user. The replace is a two-pass process: first pass may generate new placeholders which are replaced during the second pass. 
+
+The idea is to make templates and code generation understandable and also enable tweaking the templates easily.
 
 
 # How to install ?
@@ -37,6 +47,14 @@ Use vagrant user. Running as root is not necessary or recommended. Log in and op
 Here's the UI running at the virtual machine.
 
 ![Heartbreaker GUI](hbreaker.png)
+
+
+# Credits:
+
+* The Heartbreaker GUI is written in Python by Jussi Rämö. Some refactoring by Antti Virtanen.
+* [Radamsa](https://github.com/aoh/radamsa) is a fuzzing engine written by Aki Helin.
+* [Swissfuzz](https://github.com/ouspg/swissfuzz/) is a project of OUSPG.
+* Virtual machine setup scripts for the GUI by Antti Virtanen.
 
 
 # License
